@@ -5,6 +5,7 @@ import re
 
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.exceptions import TelegramAPIError
 
@@ -29,8 +30,12 @@ class TelegramSender:
                     "Не задан TELEGRAM_BOT_TOKEN",
                     context={"fix": "создай бота у @BotFather и впиши токен в .env"},
                 )
+            proxy = self._settings.bot_proxy
             self._bot = Bot(
                 token=self._settings.telegram_bot_token,
+                # Без явного прокси aiohttp пойдёт напрямую и упрётся в таймаут
+                # там, где api.telegram.org закрыт провайдером.
+                session=AiohttpSession(proxy=proxy) if proxy else None,
                 default=DefaultBotProperties(parse_mode=ParseMode.HTML),
             )
         return self._bot

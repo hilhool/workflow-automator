@@ -1,5 +1,6 @@
 """Настройки приложения. Единственный источник конфигурации — .env."""
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -26,6 +27,7 @@ class Settings(BaseSettings):
     telegram_api_hash: str | None = None
     telegram_bot_token: str | None = None
     telegram_owner_id: int | None = None
+    telegram_proxy: str | None = None
 
     moodle_url: str | None = None
     moodle_username: str | None = None
@@ -50,6 +52,7 @@ class Settings(BaseSettings):
 
     @field_validator(
         "telegram_api_id", "telegram_api_hash", "telegram_bot_token", "telegram_owner_id",
+        "telegram_proxy",
         "moodle_url", "moodle_username", "moodle_password", "moodle_token",
         mode="before",
     )
@@ -69,6 +72,21 @@ class Settings(BaseSettings):
         return bool(self.telegram_bot_token and self.telegram_owner_id)
 
     @property
+    def bot_proxy(self) -> str | None:
+        """Прокси для api.telegram.org.
+
+        httpx читает HTTPS_PROXY из окружения сам, а aiohttp (на нём стоит
+        aiogram) — нет, ему прокси нужно передать явно. Поэтому там, где
+        Telegram закрыт провайдером, бот падал, хотя чтение t.me работало.
+        """
+        return (
+            self.telegram_proxy
+            or os.environ.get("HTTPS_PROXY")
+            or os.environ.get("HTTP_PROXY")
+            or None
+        )
+
+    @property
     def has_moodle(self) -> bool:
         credentials = self.moodle_token or (self.moodle_username and self.moodle_password)
         return bool(self.moodle_url and credentials)
@@ -85,8 +103,6 @@ def env_mapping() -> dict[str, str]:
     Нужна для настроек с произвольным числом записей — например почтовых
     ящиков MAIL_1_*, MAIL_2_*, которые не описать полями модели.
     """
-    import os
-
     values: dict[str, str] = {}
     env_file = PROJECT_ROOT / ".env"
     if env_file.exists():

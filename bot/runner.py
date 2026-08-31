@@ -28,9 +28,19 @@ class BotService:
             return
         dispatcher = Dispatcher()
         dispatcher.include_router(build_router(self._application))
+        try:
+            # Создание бота тоже может упасть — например если для прокси
+            # не хватает aiohttp-socks. Поэтому оно внутри try, а не снаружи.
+            bot = self._application.services.telegram_sender.bot
+            await bot.delete_webhook(drop_pending_updates=True)
+        except Exception as error:  # noqa: BLE001 — бот не главный, планировщик важнее
+            # Чаще всего это закрытый провайдером api.telegram.org: пропиши
+            # TELEGRAM_PROXY в .env. Ронять из-за этого расписание и панель нельзя.
+            logger.error("Бот не поднялся (%s) — планировщик и панель работают без него",
+                         error)
+            await self._application.services.telegram_sender.close()
+            return
         self._dispatcher = dispatcher
-        bot = self._application.services.telegram_sender.bot
-        await bot.delete_webhook(drop_pending_updates=True)
         self._task = asyncio.create_task(self._poll(dispatcher, bot))
         logger.info("Бот запущен")
 
