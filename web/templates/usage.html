@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Расход обращений к Claude</h1>
+<p class="muted">Считается локально по ответам CLI. Стоимость условная — при подписке
+деньги не списываются, но по ней видно нагрузку на лимиты.</p>
+<table>
+  <thead><tr><th>День</th><th>Вызовов</th><th>Вход</th><th>Выход</th><th>Кэш</th><th>Условная цена</th></tr></thead>
+  <tbody>
+    {% for day, stats in daily.items() %}
+    <tr>
+      <td>{{ day }}</td>
+      <td>{{ stats.calls }}</td>
+      <td class="muted">{{ stats.input_tokens }}</td>
+      <td class="muted">{{ stats.output_tokens }}</td>
+      <td class="muted">{{ stats.cache_tokens }}</td>
+      <td class="muted">${{ '%.3f'|format(stats.cost_usd) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">Обращений ещё не было.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

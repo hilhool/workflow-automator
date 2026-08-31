@@ -1,0 +1,75 @@
+name: morning_digest
+title: Утренний дайджест
+description: >
+  Новости из телеграм-каналов, дедлайны и задачи — одним сообщением в 8 утра.
+enabled: true
+
+trigger:
+  type: cron
+  cron: "0 8 * * *"      # минута час день месяц день_недели
+  catch_up: true          # если комп спал — пришлёт при включении
+
+vars:
+  # Впиши свои каналы: имя из ссылки t.me/<имя>, со знаком @.
+  channels:
+    - "@meduzalive"
+    - "@bbcrussian"
+
+steps:
+  # telegram.web читает публичные каналы без ключей и без входа в аккаунт.
+  # Когда появится api_id, поменяй node на telegram.read — параметры те же,
+  # и станут доступны закрытые каналы и чаты.
+  - id: news
+    node: telegram.web
+    continue_on_error: true
+    params:
+      chats: "{{ vars.channels }}"
+      since_hours: 24
+      limit_per_chat: 40
+      min_chars: 60
+      track_cursor: true
+
+  - id: deadlines
+    node: items.query
+    params:
+      kind: homework
+      due_within_days: 7
+
+  - id: tasks
+    node: items.query
+    params:
+      kind: task
+      limit: 15
+
+  - id: digest
+    node: claude.prompt
+    params:
+      model: fast
+      system: >
+        Ты — редактор личного утреннего дайджеста. Пишешь по-русски, коротко,
+        без воды и вводных фраз. Не выдумываешь факты: если данных нет, пишешь,
+        что их нет. Формат — markdown с короткими пунктами.
+      prompt: |
+        Сегодня {{ now.human }}, {{ now.weekday }}.
+
+        Собери утренний дайджест из трёх блоков. Пустые блоки пропускай молча.
+
+        1. **Новости** — сгруппируй по смыслу, оставь 5–8 главных пунктов,
+           каждый одной строкой. Дубли из разных каналов объединяй.
+        2. **Дедлайны** — перечисли как есть, ближайшие первыми.
+        3. **Задачи** — коротким списком.
+
+        --- НОВОСТИ ИЗ КАНАЛОВ ({{ steps.news.count | default(0) }} сообщений) ---
+        {{ steps.news.text | default("нет новых сообщений") }}
+
+        --- ДЕДЛАЙНЫ ---
+        {{ steps.deadlines.text }}
+
+        --- ЗАДАЧИ ---
+        {{ steps.tasks.text }}
+
+  - id: send
+    node: telegram.send
+    params:
+      header: "☀️ <b>{{ now.human }}, {{ now.weekday }}</b>"
+      text: "{{ steps.digest.text }}"

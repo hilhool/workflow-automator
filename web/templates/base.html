@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Автоматизатор{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">workflow</a>
+    <nav>
+      <a href="/">Воркфлоу</a>
+      <a href="/items">Записи</a>
+      <a href="/usage">Расход</a>
+      <a href="/api/docs">API</a>
+    </nav>
+    <button id="reload" class="ghost" type="button">Перечитать YAML</button>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <div id="toast" class="toast" hidden></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

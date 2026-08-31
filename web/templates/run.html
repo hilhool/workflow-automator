@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+{% if not run %}
+  <p class="muted">Запуск не найден.</p>
+{% else %}
+<h1>Запуск #{{ run.id }} — {{ run.workflow }}</h1>
+<p class="muted">
+  {{ run.started_at|local }} → {{ run.finished_at|local }} ·
+  триггер: {{ run.trigger }} · <span class="status {{ run.status }}">{{ run.status }}</span>
+</p>
+{% if run.error_message %}<div class="card warn"><p>{{ run.error_message }}</p></div>{% endif %}
+
+{% for step in steps %}
+<article class="card">
+  <div class="card-head">
+    <h3>{{ step.step_id }} <span class="muted small">{{ step.node }}</span></h3>
+    <span class="status {{ step.status }}">{{ step.status }}</span>
+  </div>
+  {% if step.error_message %}<p class="error">{{ step.error_message }}</p>{% endif %}
+  {% if step.output %}<pre>{{ step.output }}</pre>{% endif %}
+</article>
+{% endfor %}
+<p><a href="/">← ко всем воркфлоу</a></p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,57 @@
+name: moodle_sync
+title: Синхронизация Moodle
+description: >
+  Каждые три часа забирает дедлайны из Moodle и складывает их в записи.
+  Дальше они сами попадают в утренний дайджест и вечернее напоминание.
+enabled: true
+
+trigger:
+  type: interval
+  minutes: 180
+
+steps:
+  - id: deadlines
+    node: moodle.deadlines
+    params:
+      days: 21
+      limit: 50
+
+  # Путь через веб-сервисы: данные уже структурированы.
+  - id: save_api
+    when: "{{ steps.deadlines.mode == 'api' }}"
+    node: items.save
+    params:
+      kind: homework
+      source: moodle
+      data: "{{ steps.deadlines.items_json }}"
+
+  # Запасной путь: веб-сервисы закрыты, разбираем текст страницы.
+  - id: extract
+    when: "{{ steps.deadlines.mode == 'html' }}"
+    node: claude.prompt
+    params:
+      model: fast
+      system: >
+        Ты извлекаешь дедлайны из текста страницы Moodle. Отвечаешь строго
+        JSON-массивом, без пояснений. Ничего не придумываешь.
+      prompt: |
+        Сегодня {{ now.date }}. Ниже — текст страницы предстоящих событий Moodle.
+
+        Верни JSON-массив объектов с полями:
+          "title"       — курс и название задания одной строкой
+          "body"        — ссылка или уточнение, может быть пустым
+          "due_at"      — срок в формате YYYY-MM-DDTHH:MM:SS, либо null
+          "external_id" — устойчивый ключ вида "moodle-<курс>-<задание>"
+
+        Если дедлайнов нет — верни [].
+
+        --- СТРАНИЦА ---
+        {{ steps.deadlines.text }}
+
+  - id: save_html
+    when: "{{ steps.deadlines.mode == 'html' }}"
+    node: items.save
+    params:
+      kind: homework
+      source: moodle
+      data: "{{ steps.extract.text }}"

@@ -1,0 +1,25 @@
+name: script_example
+title: Пример своего скрипта
+description: >
+  Шаблон для любой своей автоматизации: положи скрипт в data/scripts,
+  укажи имя здесь — результат придёт в телеграм.
+enabled: false
+
+trigger:
+  type: cron
+  cron: "0 12 * * *"
+
+steps:
+  - id: work
+    node: script.run
+    params:
+      script: hello.py
+      args: ["{{ now.date }}"]
+      timeout_seconds: 120
+
+  - id: send
+    when: "{{ steps.work.text }}"
+    node: telegram.send
+    params:
+      header: "⚙️ <b>{{ workflow.title }}</b>"
+      text: "{{ steps.work.text }}"

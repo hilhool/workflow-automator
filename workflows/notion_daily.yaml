@@ -1,0 +1,58 @@
+name: notion_daily
+title: Запись дня в Notion
+description: >
+  Вечером складывает открытые задачи и домашку в Notion отдельной страницей.
+  Укажи в vars.parent, куда её класть.
+enabled: false
+
+trigger:
+  type: cron
+  cron: "0 22 * * *"
+  catch_up: false
+
+vars:
+  parent: "название страницы в Notion, внутри которой создавать записи"
+
+steps:
+  - id: homework
+    node: items.query
+    params:
+      kind: homework
+      limit: 30
+
+  - id: tasks
+    node: items.query
+    params:
+      kind: task
+      limit: 30
+
+  - id: write
+    node: claude.agent
+    params:
+      model: default
+      max_turns: 12
+      timeout_seconds: 600
+      tools:
+        - mcp__claude_ai_Notion
+      system: >
+        Ты ведёшь личные заметки в Notion. Создаёшь страницы аккуратно,
+        ничего не удаляешь и не перезаписываешь существующее.
+      prompt: |
+        Создай в Notion страницу с заголовком "День {{ now.date }}"
+        внутри страницы «{{ vars.parent }}».
+
+        Содержимое:
+
+        ## Домашка
+        {{ steps.homework.text }}
+
+        ## Задачи
+        {{ steps.tasks.text }}
+
+        В ответ верни только ссылку на созданную страницу.
+
+  - id: send
+    node: telegram.send
+    params:
+      header: "🗒 <b>Записал день в Notion</b>"
+      text: "{{ steps.write.text }}"

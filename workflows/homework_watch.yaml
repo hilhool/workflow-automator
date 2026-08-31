@@ -1,0 +1,63 @@
+name: homework_watch
+title: Ловец домашки из чата
+description: >
+  Каждые полчаса читает учебный чат, вытаскивает задания и дедлайны,
+  складывает в записи и присылает уведомление о новых.
+enabled: false            # включи, когда впишешь свой чат в vars.chat
+
+trigger:
+  type: interval
+  minutes: 30
+
+vars:
+  chat: "@имя_учебного_чата"
+
+steps:
+  - id: messages
+    node: telegram.read
+    params:
+      chats: "{{ vars.chat }}"
+      since_hours: 12
+      limit_per_chat: 100
+      min_chars: 15
+      track_cursor: true
+
+  - id: extract
+    when: "{{ steps.messages.count > 0 }}"
+    node: claude.prompt
+    params:
+      model: fast
+      system: >
+        Ты извлекаешь учебные задания из переписки. Отвечаешь строго JSON-массивом,
+        без пояснений и без markdown-обёртки. Ничего не придумываешь.
+      prompt: |
+        Сегодня {{ now.date }} ({{ now.weekday }}), часовой пояс пользователя учитывай.
+
+        Найди в сообщениях ниже конкретные учебные задания, дедлайны и изменения
+        в расписании. Обычная болтовня, реакции и вопросы без задания — пропускай.
+
+        Верни JSON-массив объектов с полями:
+          "title"       — предмет и суть задания одной строкой
+          "body"        — детали: что сделать, где сдавать (может быть пустым)
+          "due_at"      — срок в формате YYYY-MM-DDTHH:MM:SS или null
+          "external_id" — короткий устойчивый ключ, например "физика-лаба-3"
+
+        Если заданий нет — верни [].
+
+        --- СООБЩЕНИЯ ---
+        {{ steps.messages.text }}
+
+  - id: save
+    when: "{{ steps.messages.count > 0 }}"
+    node: items.save
+    params:
+      kind: homework
+      source: "{{ vars.chat }}"
+      data: "{{ steps.extract.text }}"
+
+  - id: notify
+    when: "{{ steps.save.count | default(0) > 0 }}"
+    node: telegram.send
+    params:
+      header: "📚 <b>Новое из учебного чата</b>"
+      text: "{{ steps.extract.text }}"

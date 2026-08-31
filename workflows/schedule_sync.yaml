@@ -1,0 +1,62 @@
+name: schedule_sync
+title: Расписание из Telegram
+description: >
+  Читает чат или канал с расписанием, вытаскивает пары и складывает их
+  в записи. Дальше расписание на сегодня показывает бот по команде /today
+  и утренний дайджест.
+enabled: true
+
+vars:
+  # Укажи чат с расписанием: @имя_канала или его id из scripts/list_chats.py
+  chat: "не_указан"
+
+trigger:
+  type: cron
+  cron: "0 7,15 * * *"
+  catch_up: true
+
+steps:
+  - id: messages
+    when: "{{ vars.chat != 'не_указан' }}"
+    node: telegram.read
+    params:
+      chats: "{{ vars.chat }}"
+      since_hours: 72
+      limit_per_chat: 40
+      min_chars: 20
+      track_cursor: false
+
+  - id: extract
+    when: "{{ steps.messages.count | default(0) > 0 }}"
+    node: claude.prompt
+    params:
+      model: default
+      system: >
+        Ты разбираешь расписание занятий из сообщений. Отвечаешь строго
+        JSON-массивом, без пояснений и markdown. Ничего не выдумываешь:
+        если время или предмет не указаны, оставляешь поле пустым.
+      prompt: |
+        Сегодня {{ now.date }}, {{ now.weekday }}.
+
+        Ниже сообщения из чата с расписанием. Найди занятия на ближайшие дни
+        и изменения в расписании (переносы, отмены, замены аудиторий).
+
+        Верни JSON-массив объектов с полями:
+          "title"       — предмет и тип занятия, например "Матанализ, лекция"
+          "body"        — аудитория, преподаватель, пометки (может быть пустым)
+          "due_at"      — начало занятия: YYYY-MM-DDTHH:MM:SS
+          "external_id" — ключ вида "lesson-YYYY-MM-DD-HHMM-предмет"
+
+        Отменённые занятия помечай в body словом «ОТМЕНА».
+        Если расписания в сообщениях нет — верни [].
+
+        --- СООБЩЕНИЯ ---
+        {{ steps.messages.text }}
+
+  - id: save
+    when: "{{ steps.messages.count | default(0) > 0 }}"
+    node: items.save
+    params:
+      kind: lesson
+      source: telegram
+      data: "{{ steps.extract.text }}"

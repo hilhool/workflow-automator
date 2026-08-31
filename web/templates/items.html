@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Записи</h1>
+<table>
+  <thead><tr><th>#</th><th>Тип</th><th>Заголовок</th><th>Срок</th><th>Статус</th><th></th></tr></thead>
+  <tbody>
+    {% for item in items %}
+    <tr>
+      <td class="muted">{{ item.id }}</td>
+      <td><span class="tag">{{ item.kind }}</span></td>
+      <td>{{ item.title }}<div class="muted small">{{ item.body }}</div></td>
+      <td class="muted">{{ item.due_at|local if item.due_at else '—' }}</td>
+      <td><span class="status {{ 'success' if item.status == 'done' else 'running' }}">{{ item.status }}</span></td>
+      <td>
+        {% if item.status != 'done' %}
+        <button class="ghost done" data-item="{{ item.id }}" type="button">Закрыть</button>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="muted">Пока пусто.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,45 @@
+name: messages_watch
+title: Кто мне написал
+description: >
+  Раз в час проверяет личные переписки и группы и присылает короткую сводку
+  непрочитанного: кто написал, о чём, что ждёт ответа.
+enabled: true
+
+trigger:
+  type: interval
+  minutes: 60
+
+steps:
+  - id: unread
+    node: telegram.unread
+    params:
+      max_dialogs: 30
+      per_dialog: 5
+      include_groups: true
+      include_channels: false
+
+  - id: summary
+    when: "{{ steps.unread.count > 0 }}"
+    node: claude.prompt
+    params:
+      model: fast
+      system: >
+        Ты пересказываешь непрочитанные сообщения. По-русски, предельно кратко:
+        одна строка на собеседника. Ничего не придумываешь.
+      prompt: |
+        Ниже непрочитанные сообщения из Telegram ({{ steps.unread.dialogs }} диалогов).
+
+        Для каждого собеседника дай одну строку в формате:
+        «Имя — суть». Если человек задал вопрос или о чём-то просит,
+        добавь в конце строки пометку «нужен ответ».
+        Групповые чаты объединяй в одну строку, если там ничего важного.
+
+        --- СООБЩЕНИЯ ---
+        {{ steps.unread.text }}
+
+  - id: send
+    when: "{{ steps.unread.count > 0 }}"
+    node: telegram.send
+    params:
+      header: "💬 <b>Непрочитанное ({{ steps.unread.count }})</b>"
+      text: "{{ steps.summary.text }}"

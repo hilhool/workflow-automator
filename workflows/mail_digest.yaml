@@ -1,0 +1,61 @@
+name: mail_digest
+title: Сводка почты
+description: >
+  Дважды в день собирает письма из всех настроенных ящиков и присылает,
+  что действительно требует внимания. Работает по IMAP — ящиков может быть
+  сколько угодно и на разных сервисах.
+enabled: true
+
+trigger:
+  type: cron
+  cron: "0 9,19 * * *"
+  catch_up: true
+
+steps:
+  - id: letters
+    node: mail.fetch
+    params:
+      since_hours: 12
+      limit: 40
+      body_chars: 1200
+      track_cursor: true
+
+  - id: summary
+    when: "{{ steps.letters.count > 0 }}"
+    node: claude.prompt
+    params:
+      model: default
+      system: >
+        Ты разбираешь почту. Пишешь по-русски, коротко, без вводных фраз.
+        Не выдумываешь отправителей и сроки: чего нет в письме, того не пишешь.
+      prompt: |
+        Сейчас {{ now.human }}, {{ now.time }}.
+        Ниже письма из {{ steps.letters.accounts | join(", ") }}
+        — всего {{ steps.letters.count }}.
+
+        Сделай сводку тремя блоками, пустые пропусти:
+
+        1. **Требует ответа** — от кого, о чём, что именно нужно сделать.
+           Если в письме есть срок, укажи его.
+        2. **Важное к сведению** — одной строкой каждое.
+        3. **Прочее** — только количество, без перечисления
+           (рассылки, промо, уведомления сервисов).
+
+        Помечай ящик в скобках, если писем из разных ящиков.
+
+        --- ПИСЬМА ---
+        {{ steps.letters.text }}
+
+  - id: send
+    when: "{{ steps.letters.count > 0 }}"
+    node: telegram.send
+    params:
+      header: "📬 <b>Почта: {{ steps.letters.count }} писем</b>"
+      text: "{{ steps.summary.text }}"
+
+  - id: report_failures
+    when: "{{ steps.letters.failures }}"
+    node: telegram.send
+    params:
+      header: "⚠️ <b>Ящики, к которым не удалось подключиться</b>"
+      text: "{{ steps.letters.failures | join('\n') }}"

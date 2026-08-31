@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if errors %}
+<section class="card warn">
+  <h2>Файлы с ошибками</h2>
+  {% for filename, message in errors.items() %}
+    <p><code>{{ filename }}</code> — {{ message }}</p>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if not settings.has_telegram_account or not settings.has_telegram_bot %}
+<section class="card warn">
+  <h2>Не всё настроено</h2>
+  {% if not settings.has_telegram_account %}
+    <p>Нет доступа к аккаунту Telegram — чтение каналов не работает.
+       Заполни <code>TELEGRAM_API_ID</code> и <code>TELEGRAM_API_HASH</code>, затем
+       <code>./.venv/bin/python scripts/tg_login.py</code>.</p>
+  {% endif %}
+  {% if not settings.has_telegram_bot %}
+    <p>Нет бота для доставки — заполни <code>TELEGRAM_BOT_TOKEN</code>
+       и <code>TELEGRAM_OWNER_ID</code>.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+<section>
+  <h1>Воркфлоу</h1>
+  <div class="grid">
+    {% for workflow in workflows %}
+    <article class="card">
+      <div class="card-head">
+        <h3>{{ workflow.title }}</h3>
+        {% if not workflow.enabled %}<span class="tag off">выключен</span>{% endif %}
+      </div>
+      <p class="muted">{{ workflow.description }}</p>
+      <dl class="meta">
+        <div><dt>Триггер</dt><dd>
+          {% if workflow.trigger.type == 'cron' %}cron <code>{{ workflow.trigger.cron }}</code>
+          {% elif workflow.trigger.type == 'interval' %}каждые {{ workflow.trigger.minutes }} мин
+          {% else %}вручную{% endif %}
+        </dd></div>
+        <div><dt>Следующий</dt><dd>{{ next_runs.get(workflow.name, '—') }}</dd></div>
+        <div><dt>Шагов</dt><dd>{{ workflow.steps|length }}</dd></div>
+      </dl>
+      <button class="run" data-workflow="{{ workflow.name }}" type="button">Запустить сейчас</button>
+    </article>
+    {% else %}
+    <p class="muted">Пока нет ни одного файла в <code>workflows/</code>.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<section>
+  <h2>Последние запуски</h2>
+  <table>
+    <thead><tr><th>#</th><th>Воркфлоу</th><th>Статус</th><th>Триггер</th><th>Начало</th><th>Ошибка</th></tr></thead>
+    <tbody>
+      {% for run in runs %}
+      <tr>
+        <td><a href="/runs/{{ run.id }}">{{ run.id }}</a></td>
+        <td>{{ run.workflow }}</td>
+        <td><span class="status {{ run.status }}">{{ run.status }}</span></td>
+        <td class="muted">{{ run.trigger }}</td>
+        <td class="muted">{{ run.started_at|local }}</td>
+        <td class="muted small">{{ run.error_message or '' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">Запусков ещё не было.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

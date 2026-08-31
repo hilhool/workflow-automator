@@ -1,0 +1,23 @@
+name: deadlines_evening
+title: Вечернее напоминание о дедлайнах
+description: Ежедневно в 21:00 присылает то, что горит в ближайшие два дня.
+enabled: true
+
+trigger:
+  type: cron
+  cron: "0 21 * * *"
+  catch_up: false          # напоминание за вчера уже бесполезно
+
+steps:
+  - id: soon
+    node: items.query
+    params:
+      kind: homework
+      due_within_days: 2
+
+  - id: send
+    when: "{{ steps.soon.count > 0 }}"
+    node: telegram.send
+    params:
+      header: "⏰ <b>Горит в ближайшие два дня</b>"
+      text: "{{ steps.soon.text }}"
