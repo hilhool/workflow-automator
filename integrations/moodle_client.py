@@ -13,6 +13,7 @@ import httpx
 
 from core.config import Settings
 from core.errors import MoodleAuthError, MoodleError, MoodleWebServiceUnavailable
+from core.net import http_client
 from core.timeutil import to_iso, utc_now
 
 _TOKEN_NAMESPACE = "moodle"
@@ -120,7 +121,7 @@ class MoodleClient:
 
     async def _post(self, url: str, payload: dict[str, Any]) -> Any:
         try:
-            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            async with http_client(self._settings, timeout=30) as client:
                 response = await client.post(url, data=payload)
                 response.raise_for_status()
                 return response.json()

@@ -30,7 +30,7 @@ class TelegramSender:
                     "Не задан TELEGRAM_BOT_TOKEN",
                     context={"fix": "создай бота у @BotFather и впиши токен в .env"},
                 )
-            proxy = self._settings.bot_proxy
+            proxy = self._settings.proxy_url
             self._bot = Bot(
                 token=self._settings.telegram_bot_token,
                 # Без явного прокси aiohttp пойдёт напрямую и упрётся в таймаут

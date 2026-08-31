@@ -10,7 +10,9 @@ from datetime import timedelta
 import httpx
 from bs4 import BeautifulSoup
 
+from core.config import Settings
 from core.errors import TelegramError
+from core.net import http_client
 from core.timeutil import parse_iso, to_iso, utc_now
 from integrations.telegram_reader import ChatMessage, ReadRequest
 
@@ -22,16 +24,16 @@ _USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.3
 class TelegramWebReader:
     """Разбирает публичную веб-версию канала."""
 
-    def __init__(self, timeout_seconds: int = 30):
+    def __init__(self, settings: Settings, timeout_seconds: int = 30):
+        self._settings = settings
         self._timeout = timeout_seconds
 
     async def read(self, request: ReadRequest) -> list[ChatMessage]:
         """Собирает сообщения из публичных каналов, новые — в конце списка."""
         since = utc_now() - timedelta(hours=request.since_hours)
         collected: list[ChatMessage] = []
-        async with httpx.AsyncClient(
-            timeout=self._timeout, follow_redirects=True,
-            headers={"User-Agent": _USER_AGENT},
+        async with http_client(
+            self._settings, timeout=self._timeout, headers={"User-Agent": _USER_AGENT},
         ) as client:
             for chat in request.chats:
                 html = await self._fetch(client, chat)

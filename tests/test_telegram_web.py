@@ -61,8 +61,8 @@ def page_html(monkeypatch):
     return html
 
 
-async def test_reads_fresh_messages_only(page_html):
-    messages = await TelegramWebReader().read(
+async def test_reads_fresh_messages_only(settings, page_html):
+    messages = await TelegramWebReader(settings).read(
         ReadRequest(chats=["@meduzalive"], since_hours=24, min_chars=30)
     )
     assert [message.message_id for message in messages] == [101]
@@ -70,24 +70,24 @@ async def test_reads_fresh_messages_only(page_html):
     assert messages[0].link == "https://t.me/meduzalive/101"
 
 
-async def test_skips_messages_shorter_than_minimum(page_html):
-    messages = await TelegramWebReader().read(
+async def test_skips_messages_shorter_than_minimum(settings, page_html):
+    messages = await TelegramWebReader(settings).read(
         ReadRequest(chats=["@meduzalive"], since_hours=24, min_chars=200)
     )
     assert messages == []
 
 
-async def test_cursor_prevents_repeats(page_html):
-    messages = await TelegramWebReader().read(
+async def test_cursor_prevents_repeats(settings, page_html):
+    messages = await TelegramWebReader(settings).read(
         ReadRequest(chats=["@meduzalive"], since_hours=24, min_chars=30,
                     min_ids={"@meduzalive": 101})
     )
     assert messages == []
 
 
-async def test_missing_channel_raises_telegram_error(page_html):
+async def test_missing_channel_raises_telegram_error(settings, page_html):
     with pytest.raises(TelegramError):
-        await TelegramWebReader().read(ReadRequest(chats=["@nonexistent"]))
+        await TelegramWebReader(settings).read(ReadRequest(chats=["@nonexistent"]))
 
 
 async def test_node_saves_cursor_between_runs(services, page_html):

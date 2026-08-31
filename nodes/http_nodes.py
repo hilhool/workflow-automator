@@ -5,6 +5,7 @@ from typing import Any
 import httpx
 
 from core.errors import NodeExecutionError
+from core.net import http_client
 from core.models import StepResult
 from core.registry import register
 from nodes.base import Node, NodeContext, as_int, require
@@ -23,7 +24,7 @@ class HttpRequestNode(Node):
             raise NodeExecutionError("Метод не поддерживается", context={"method": method})
         timeout = as_int(params, "timeout_seconds", 30)
         try:
-            async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            async with http_client(context.services.settings, timeout=timeout) as client:
                 response = await client.request(
                     method,
                     url,

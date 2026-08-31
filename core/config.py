@@ -4,7 +4,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -27,7 +27,15 @@ class Settings(BaseSettings):
     telegram_api_hash: str | None = None
     telegram_bot_token: str | None = None
     telegram_owner_id: int | None = None
-    telegram_proxy: str | None = None
+    # Прокси берётся из TELEGRAM_PROXY, а если его нет — из стандартных
+    # переменных окружения. Читается один раз при создании настроек, чтобы
+    # поведение не зависело от того, из-под чего запущен процесс.
+    telegram_proxy: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "TELEGRAM_PROXY", "HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY",
+        ),
+    )
 
     moodle_url: str | None = None
     moodle_username: str | None = None
@@ -72,19 +80,17 @@ class Settings(BaseSettings):
         return bool(self.telegram_bot_token and self.telegram_owner_id)
 
     @property
-    def bot_proxy(self) -> str | None:
-        """Прокси для api.telegram.org.
+    def proxy_url(self) -> str | None:
+        """Прокси для всех внешних запросов: Telegram, Moodle, Claude CLI.
 
-        httpx читает HTTPS_PROXY из окружения сам, а aiohttp (на нём стоит
-        aiogram) — нет, ему прокси нужно передать явно. Поэтому там, где
-        Telegram закрыт провайдером, бот падал, хотя чтение t.me работало.
+        Значение из .env главнее окружения, и не случайно. В сессии рабочего
+        стола легко оказывается прокси от VPN-клиента вида socks4://…, который
+        httpx не поддерживает вовсе — с ним падало всё, что ходит в сеть.
+        Поэтому схемы, которых клиенты не понимают, здесь отбрасываются.
         """
-        return (
-            self.telegram_proxy
-            or os.environ.get("HTTPS_PROXY")
-            or os.environ.get("HTTP_PROXY")
-            or None
-        )
+        supported = ("http://", "https://", "socks5://", "socks5h://")
+        cleaned = (self.telegram_proxy or "").strip()
+        return cleaned if cleaned.lower().startswith(supported) else None
 
     @property
     def has_moodle(self) -> bool:

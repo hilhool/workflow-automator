@@ -34,3 +34,14 @@ def test_tools_mode_reads_user_settings():
 def test_absolute_binary_is_used_as_is():
     runner = ClaudeRunner(Settings(_env_file=None, claude_bin="/opt/bin/claude"))
     assert runner._executable() == "/opt/bin/claude"
+
+
+def test_subprocess_env_normalizes_proxy_variables():
+    """CLI читает окружение сам — унаследованный socks4 увёл бы его в никуда."""
+    from core.net import subprocess_env
+
+    settings = Settings(_env_file=None, telegram_proxy="http://proxy:3128")
+    environment = subprocess_env(settings)
+    assert environment["HTTP_PROXY"] == "http://proxy:3128"
+    assert environment["HTTPS_PROXY"] == "http://proxy:3128"
+    assert "ALL_PROXY" not in environment

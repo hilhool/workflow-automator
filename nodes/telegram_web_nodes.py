@@ -26,7 +26,10 @@ class TelegramWebReadNode(Node):
             min_chars=as_int(params, "min_chars", 30),
             min_ids=cursors,
         )
-        reader = TelegramWebReader(timeout_seconds=as_int(params, "timeout_seconds", 30))
+        reader = TelegramWebReader(
+            context.services.settings,
+            timeout_seconds=as_int(params, "timeout_seconds", 30),
+        )
         messages = await reader.read(request)
         if track_cursor and messages:
             await self._save_cursors(context, messages, cursors)

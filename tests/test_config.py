@@ -21,3 +21,19 @@ def test_filled_values_enable_features():
     assert settings.telegram_api_id == 123
     assert settings.has_telegram_account is True
     assert settings.has_telegram_bot is True
+
+
+def test_unsupported_proxy_scheme_is_ignored():
+    """socks4 не умеют ни httpx, ни aiohttp — такой прокси хуже, чем никакого."""
+    settings = Settings(_env_file=None, telegram_proxy="socks4://127.0.0.1:10808")
+    assert settings.proxy_url is None
+
+
+def test_supported_proxy_schemes_pass_through():
+    for value in ("http://user:pass@host:3128", "socks5://127.0.0.1:1080"):
+        assert Settings(_env_file=None, telegram_proxy=value).proxy_url == value
+
+
+def test_proxy_is_optional():
+    assert Settings(_env_file=None, telegram_proxy=None).proxy_url is None
+    assert Settings(_env_file=None, telegram_proxy="  ").proxy_url is None

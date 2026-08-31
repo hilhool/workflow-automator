@@ -14,6 +14,7 @@ from pathlib import Path
 
 from core.config import Settings
 from core.errors import ClaudeError
+from core.net import subprocess_env
 
 _BUILTIN_TOOLS = (
     "Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch",
@@ -128,6 +129,7 @@ class ClaudeRunner:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(cwd) if cwd else None,
+                env=subprocess_env(self._settings),
             )
         except FileNotFoundError as error:
             if getattr(error, "winerror", None) == 206:

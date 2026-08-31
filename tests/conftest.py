@@ -34,6 +34,10 @@ class FailNode(Node):
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
     return Settings(
+        # без _env_file тесты подхватили бы личный .env: прокси оттуда уводил
+        # запросы мимо подменённого транспорта.
+        _env_file=None,
+        telegram_proxy=None,   # и не из окружения: запросы идут в подменённый транспорт
         db_path=tmp_path / "test.db",
         telegram_session_path=tmp_path / "session",
         timezone="Asia/Yekaterinburg",

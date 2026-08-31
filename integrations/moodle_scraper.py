@@ -8,6 +8,7 @@ import httpx
 
 from core.config import Settings
 from core.errors import MoodleAuthError, MoodleError
+from core.net import http_client
 from integrations.html_text import find_input_value, html_to_text
 
 LOGIN_PATH = "/login/index.php"
@@ -42,7 +43,7 @@ class MoodleScraper:
             return self._client
         username, password = self._require_credentials()
         base = self._settings.moodle_base_url
-        client = httpx.AsyncClient(timeout=45, follow_redirects=True)
+        client = http_client(self._settings, timeout=45)
         try:
             page = await client.get(f"{base}{LOGIN_PATH}")
             response = await client.post(
