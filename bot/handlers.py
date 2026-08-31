@@ -64,6 +64,9 @@ def build_router(application) -> Router:
     @router.message(Command("start"))
     async def start(message: Message) -> None:
         if not owner_id:
+            # id уходит и в лог: так его можно забрать из data/logs, не переписывая руками.
+            logger.info("Команда /start от неизвестного отправителя, id=%s",
+                        message.from_user.id)
             await message.answer(
                 f"Твой Telegram id: <code>{message.from_user.id}</code>\n"
                 "Впиши его в .env как TELEGRAM_OWNER_ID и перезапусти сервис."
