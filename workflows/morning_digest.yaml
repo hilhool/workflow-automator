@@ -60,7 +60,7 @@ steps:
         3. **Задачи** — коротким списком.
 
         --- НОВОСТИ ИЗ КАНАЛОВ ({{ steps.news.count | default(0) }} сообщений) ---
-        {{ steps.news.text | default("нет новых сообщений") }}
+        {{ steps.news.text | default("нет новых сообщений", true) }}
 
         --- ДЕДЛАЙНЫ ---
         {{ steps.deadlines.text }}

@@ -76,9 +76,17 @@ def build_router(application) -> Router:
     async def reject_strangers(message: Message) -> None:
         logger.warning("Сообщение от постороннего id=%s", message.from_user.id)
 
+    async def reject_stranger_callback(query: CallbackQuery) -> None:
+        logger.warning("Нажатие кнопки от постороннего id=%s", query.from_user.id)
+        await query.answer("Эта панель не для тебя", show_alert=True)
+
     if owner_id:
         # Фильтр ставится только когда владелец известен, иначе он отсечёт всех.
+        # Кнопки фильтруются отдельно: сообщение с клавиатурой можно переслать.
         router.message.register(reject_strangers, F.from_user.id != owner_id)
+        router.callback_query.register(
+            reject_stranger_callback, F.from_user.id != owner_id
+        )
 
     @router.message(Command("help", "menu"))
     async def help_command(message: Message) -> None:

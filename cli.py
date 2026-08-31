@@ -1,9 +1,9 @@
 """Командная строка для отладки без запуска всего сервиса.
 
 Примеры:
-    ./.venv/bin/python cli.py list
-    ./.venv/bin/python cli.py nodes
-    ./.venv/bin/python cli.py run morning_digest
+    python cli.py list
+    python cli.py nodes
+    python cli.py run morning_digest
 """
 
 import argparse

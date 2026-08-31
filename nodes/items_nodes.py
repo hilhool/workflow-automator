@@ -6,7 +6,7 @@ from typing import Any
 from core.jsonparse import extract_json
 from core.models import ItemDraft, StepResult
 from core.registry import register
-from core.timeutil import format_local, utc_now
+from core.timeutil import format_local, normalize_due, to_iso, utc_now
 from nodes.base import Node, NodeContext, as_int, require
 
 
@@ -31,14 +31,18 @@ class ItemsSaveNode(Node):
         kind = str(require(params, "kind"))
         source = str(params.get("source") or context.workflow.name)
         entries = _coerce_items(require(params, "data"))
-        saved = []
+        timezone = context.services.settings.timezone
+        saved: list[int] = []
+        titles: list[str] = []
         for entry in entries:
             draft = ItemDraft(
                 kind=kind,
                 source=source,
                 title=str(entry.get("title") or entry.get("name") or "Без названия")[:300],
                 body=str(entry.get("body") or entry.get("description") or ""),
-                due_at=entry.get("due_at") or entry.get("deadline"),
+                due_at=normalize_due(
+                    entry.get("due_at") or entry.get("deadline"), timezone
+                ),
                 external_id=self._external_id(entry),
                 payload={
                     key: value
@@ -47,11 +51,19 @@ class ItemsSaveNode(Node):
                 },
             )
             saved.append(await context.services.items.upsert(draft))
+            titles.append(self._describe(draft, timezone))
         return StepResult(
             ok=True,
-            text=f"Сохранено записей: {len(saved)}",
-            data={"count": len(saved), "ids": saved},
+            text="\n".join(titles) or "Сохранять нечего.",
+            data={"count": len(saved), "ids": saved, "titles": titles},
         )
+
+    @staticmethod
+    def _describe(draft: ItemDraft, timezone: str) -> str:
+        """Строка для уведомления: то же, что увидит человек в телеграме."""
+        due = f" (до {format_local(draft.due_at, timezone)})" if draft.due_at else ""
+        body = f" — {draft.body}" if draft.body else ""
+        return f"• {draft.title}{due}{body}"
 
     @staticmethod
     def _external_id(entry: dict) -> str | None:
@@ -68,7 +80,7 @@ class ItemsQueryNode(Node):
         days = as_int(params, "due_within_days", 0)
         store = context.services.items
         if days > 0:
-            deadline = (utc_now() + timedelta(days=days)).isoformat()
+            deadline = to_iso(utc_now() + timedelta(days=days))
             rows = await store.due_before(kind, deadline)
         else:
             rows = await store.list_open(kind, limit=as_int(params, "limit", 50))

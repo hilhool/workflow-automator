@@ -1,5 +1,8 @@
 """Доставка сообщений тебе в Telegram через бота."""
 
+import html
+import re
+
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -71,9 +74,7 @@ class TelegramSender:
 
     async def _send_plain(self, target: int | str, chunk: str, cause: Exception) -> None:
         """Запасной путь: если разметка не понравилась Telegram, шлём как есть."""
-        import re
-
-        plain = re.sub(r"<[^>]+>", "", chunk)
+        plain = html.unescape(re.sub(r"<[^>]+>", "", chunk))
         try:
             await self.bot.send_message(
                 target, plain, parse_mode=None, disable_web_page_preview=True

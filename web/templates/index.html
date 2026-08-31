@@ -16,7 +16,7 @@
   {% if not settings.has_telegram_account %}
     <p>Нет доступа к аккаунту Telegram — чтение каналов не работает.
        Заполни <code>TELEGRAM_API_ID</code> и <code>TELEGRAM_API_HASH</code>, затем
-       <code>./.venv/bin/python scripts/tg_login.py</code>.</p>
+       <code>python scripts/tg_login.py</code>.</p>
   {% endif %}
   {% if not settings.has_telegram_bot %}
     <p>Нет бота для доставки — заполни <code>TELEGRAM_BOT_TOKEN</code>

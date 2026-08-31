@@ -106,7 +106,7 @@ class TelegramReader:
             await client.disconnect()
             raise TelegramAuthError(
                 "Сессия Telegram не авторизована",
-                context={"fix": "запусти: ./.venv/bin/python scripts/tg_login.py"},
+                context={"fix": "запусти scripts/tg_login.py в окружении проекта"},
             )
         self._client = client
 

@@ -1,6 +1,6 @@
 """Показывает диалоги аккаунта, чтобы взять точные имена каналов для YAML.
 
-Запуск:  ./.venv/bin/python scripts/list_chats.py [подстрока]
+Запуск:  python scripts/list_chats.py [подстрока]  (в окружении проекта)
 """
 
 import asyncio
@@ -23,7 +23,7 @@ async def show(needle: str = "") -> int:
     )
     await client.connect()
     if not await client.is_user_authorized():
-        print("Нет сессии. Сначала: ./.venv/bin/python scripts/tg_login.py")
+        print("Нет сессии. Сначала: python scripts/tg_login.py")
         await client.disconnect()
         return 1
     async for dialog in client.iter_dialogs():

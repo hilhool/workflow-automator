@@ -5,6 +5,7 @@
 """
 
 import asyncio
+import shutil
 import sys
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,32 @@ from core.models import StepResult
 from core.registry import register
 from nodes.base import Node, NodeContext, as_int, as_list, require
 
-_INTERPRETERS = {".py": [sys.executable], ".sh": ["/bin/bash"], ".js": ["node"]}
+_INTERPRETERS = {".py": [sys.executable], ".sh": ["bash"], ".js": ["node"]}
+
+
+def _resolve_interpreter(suffix: str) -> list[str]:
+    """Команда запуска для расширения, найденная в PATH.
+
+    Путь ищется, а не берётся жёстко (`/bin/bash`): на Windows bash приезжает
+    вместе с Git и лежит совсем в другом месте, а node ставится как node.cmd,
+    которую CreateProcess сама не подставит.
+    """
+    interpreter = _INTERPRETERS.get(suffix)
+    if interpreter is None:
+        raise DefinitionError(
+            "Неподдерживаемое расширение скрипта",
+            context={"suffix": suffix, "supported": sorted(_INTERPRETERS)},
+        )
+    executable, *rest = interpreter
+    if Path(executable).is_absolute():
+        return interpreter
+    found = shutil.which(executable)
+    if found is None:
+        raise DefinitionError(
+            "Не найден интерпретатор для скрипта",
+            context={"suffix": suffix, "need": executable},
+        )
+    return [found, *rest]
 
 
 def _resolve_script(name: str) -> Path:
@@ -39,12 +65,7 @@ class ScriptRunNode(Node):
 
     async def run(self, params: dict[str, Any], context: NodeContext) -> StepResult:
         script = _resolve_script(str(require(params, "script")))
-        interpreter = _INTERPRETERS.get(script.suffix)
-        if interpreter is None:
-            raise DefinitionError(
-                "Неподдерживаемое расширение скрипта",
-                context={"suffix": script.suffix, "supported": sorted(_INTERPRETERS)},
-            )
+        interpreter = _resolve_interpreter(script.suffix)
         arguments = [str(item) for item in as_list(params.get("args"), param="args")]
         timeout = as_int(params, "timeout_seconds", 120)
         stdout, stderr, code = await self._execute(

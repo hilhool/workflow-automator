@@ -56,3 +56,18 @@ def test_broken_date_gives_empty_string():
 def test_message_without_text_part_gives_empty_body():
     raw = "Subject: x\nContent-Type: text/html; charset=utf-8\n\n<p>привет</p>"
     assert _extract_body(parse(raw), limit=100) == ""
+
+
+async def test_fetch_without_accounts_keeps_full_data_shape(engine, services):
+    """Шаг пропускается, но ключи остаются: на них ссылаются условия when в YAML."""
+    from core.models import Step, Trigger, Workflow
+
+    services._mail_accounts = []
+    workflow = Workflow(
+        name="mail_flow", title="Тест", trigger=Trigger(),
+        steps=(Step(id="letters", node="mail.fetch"),),
+    )
+    outcome = await engine.run(workflow)
+    result = outcome.results["letters"]
+    assert result.skipped
+    assert result.data == {"count": 0, "messages": [], "accounts": [], "failures": []}

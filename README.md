@@ -14,26 +14,36 @@ API-ключ не нужен, платить не за что.
 
 ## Быстрый старт
 
+macOS и Linux:
+
 ```bash
-cd ~/Documents/Работа/workflow
-
-# 1. Окружение (уже создано, повторять не нужно)
 python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
+cp .env.example .env            # затем заполни, см. ниже
+source .venv/bin/activate
+```
 
-# 2. Настройки
-cp .env.example .env       # затем заполни, см. ниже
+Windows (PowerShell):
 
-# 3. Вход в Telegram-аккаунт (один раз)
-./.venv/bin/python scripts/tg_login.py
+```powershell
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+Copy-Item .env.example .env     # затем заполни, см. ниже
+.venv\Scripts\Activate.ps1
+```
 
-# 4. Проверка Moodle (скажет, каким путём будет работать)
-./.venv/bin/python scripts/moodle_check.py
+Дальше команды одинаковые — окружение уже активировано:
 
-# 5. Запуск
-./.venv/bin/python main.py
+```
+python scripts/tg_login.py      # вход в Telegram-аккаунт, один раз
+python scripts/moodle_check.py  # покажет, каким путём заработает Moodle
+python main.py                  # запуск
 ```
 
 Открой `http://127.0.0.1:8765` — там всё видно.
+
+Ниже по тексту `python` — это интерпретатор из `.venv`. Без активации окружения
+он называется `./.venv/bin/python` на macOS и Linux и `.venv\Scripts\python.exe`
+на Windows.
 
 ### Что заполнить в `.env`
 
@@ -55,10 +65,23 @@ cp .env.example .env       # затем заполни, см. ниже
 
 ### Автозапуск
 
+macOS (launchd):
+
 ```bash
 ./scripts/install_service.sh     # поднимется при входе в систему и после перезагрузки
 ./scripts/uninstall_service.sh   # убрать
 ```
+
+Windows («Планировщик заданий»):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install_service.ps1
+powershell -ExecutionPolicy Bypass -File scripts\uninstall_service.ps1
+```
+
+Задание называется `LocalWorkflowAutomator`: стартует при входе в систему и
+поднимается само, если процесс упал. Окна консоли не будет — работает
+`pythonw.exe`, весь вывод идёт в лог.
 
 Логи сервиса — в `data/logs/`.
 
@@ -124,7 +147,7 @@ steps:
 | `script.run` | запускает твой скрипт из `data/scripts` |
 | `http.request` | HTTP-запрос к любому API |
 
-Актуальный список: `./.venv/bin/python cli.py nodes`.
+Актуальный список: `python cli.py nodes`.
 
 ### Готовые воркфлоу
 
@@ -143,7 +166,7 @@ steps:
 Имена каналов удобно смотреть так:
 
 ```bash
-./.venv/bin/python scripts/list_chats.py универ
+python scripts/list_chats.py универ
 ```
 
 ## Moodle
@@ -157,7 +180,7 @@ steps:
    открывает страницу предстоящих событий, чистит её от разметки и отдаёт текст
    Claude — тот вытаскивает задания и сроки.
 
-Какой путь у тебя — покажет `./.venv/bin/python scripts/moodle_check.py`. В журнале
+Какой путь у тебя — покажет `python scripts/moodle_check.py`. В журнале
 запуска это видно по полю `mode`: `api` или `html`.
 
 Задания попадают в записи с `kind: homework` и ключом `moodle-<id>`, поэтому
@@ -226,10 +249,10 @@ outlook, icloud, rambler. Для своего домена добавьте `MAI
 ## Отладка из терминала
 
 ```bash
-./.venv/bin/python cli.py list            # какие воркфлоу видит система
-./.venv/bin/python cli.py nodes           # доступные типы шагов
-./.venv/bin/python cli.py run morning_digest   # прогнать один раз и увидеть результат
-./.venv/bin/python -m pytest              # тесты
+python cli.py list            # какие воркфлоу видит система
+python cli.py nodes           # доступные типы шагов
+python cli.py run morning_digest   # прогнать один раз и увидеть результат
+python -m pytest              # тесты
 ```
 
 Правки в YAML подхватываются кнопкой «Перечитать YAML» в панели —
@@ -250,10 +273,9 @@ outlook, icloud, rambler. Для своего домена добавьте `MAI
 `claude.agent` пользуется теми коннекторами, что подключены к твоему Claude Code.
 Проверить: `claude mcp list`.
 
-Сейчас **Notion, Google Drive и Календарь авторизованы и работают**, а
-**Gmail — нет**: у него доступен только шаг авторизации. Чтобы включить
-`gmail_digest.yaml`, авторизуй коннектор Gmail в настройках claude.ai
-(Settings → Connectors), затем поставь `enabled: true`.
+Коннектор, у которого в списке доступен только шаг авторизации, ещё не
+подключён — авторизуй его в настройках claude.ai (Settings → Connectors).
+Готовый пример агентского шага — `notion_daily.yaml`.
 
 Имя инструмента для `tools` строится как `mcp__<сервер>__<инструмент>`;
 можно разрешить сервер целиком: `mcp__claude_ai_Notion`.

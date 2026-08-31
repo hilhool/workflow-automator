@@ -22,7 +22,7 @@ class MailFetchNode(Node):
             return StepResult(
                 ok=True, skipped=True,
                 text="Почтовые ящики не настроены: добавь MAIL_1_EMAIL и MAIL_1_PASSWORD в .env.",
-                data={"count": 0, "messages": [], "accounts": []},
+                data={"count": 0, "messages": [], "accounts": [], "failures": []},
             )
         request = MailRequest(
             since_hours=as_int(params, "since_hours", 24),
