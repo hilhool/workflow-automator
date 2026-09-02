@@ -1,24 +1,25 @@
-# Локальный автоматизатор рутины
+# Local Workflow Automator
 
-Личный «n8n на минималках»: воркфлоу описываются в YAML, крутятся по расписанию
-на твоей машине, а всё умное делает Claude через твою подписку Claude Code —
-API-ключ не нужен, платить не за что.
+A self-hosted automation service. Workflows are declared in YAML, run on a
+schedule on the local machine, and delegate language tasks to Claude through an
+existing Claude Code subscription. No API key is required and no per-request
+billing applies.
 
-Три части в одном процессе:
+The process combines three components:
 
-- **Планировщик** — запускает воркфлоу по cron и догоняет то, что было пропущено,
-  пока компьютер спал.
-- **Telegram-бот** — присылает результаты и принимает команды с телефона.
-- **Веб-панель** на `http://127.0.0.1:8765` — список воркфлоу, журнал запусков
-  с текстом каждого шага, записи и расход обращений к Claude.
+- **Scheduler** — runs workflows on cron and replays anything missed while the
+  machine was asleep.
+- **Telegram bot** — delivers results and accepts commands from a phone.
+- **Web panel** at `http://127.0.0.1:8765` — workflow catalogue, run journal with
+  the output of every step, stored items, and Claude usage statistics.
 
-## Быстрый старт
+## Quick start
 
-macOS и Linux:
+macOS and Linux:
 
 ```bash
 python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
-cp .env.example .env            # затем заполни, см. ниже
+cp .env.example .env            # then fill it in, see below
 source .venv/bin/activate
 ```
 
@@ -27,107 +28,109 @@ Windows (PowerShell):
 ```powershell
 python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
-Copy-Item .env.example .env     # затем заполни, см. ниже
+Copy-Item .env.example .env     # then fill it in, see below
 .venv\Scripts\Activate.ps1
 ```
 
-Дальше команды одинаковые — окружение уже активировано:
+The remaining commands are identical once the environment is active:
 
 ```
-python scripts/tg_login.py      # вход в Telegram-аккаунт, один раз
-python scripts/moodle_check.py  # покажет, каким путём заработает Moodle
-python main.py                  # запуск
+python scripts/tg_login.py      # one-time sign-in to the Telegram account
+python scripts/moodle_check.py  # reports which Moodle access path is available
+python main.py                  # start the service
 ```
 
-Открой `http://127.0.0.1:8765` — там всё видно.
+Open `http://127.0.0.1:8765` to review the current state. The panel and the
+bot are in Russian; this document quotes their labels where relevant.
 
-Ниже по тексту `python` — это интерпретатор из `.venv`. Без активации окружения
-он называется `./.venv/bin/python` на macOS и Linux и `.venv\Scripts\python.exe`
-на Windows.
+Throughout this document, `python` refers to the interpreter inside `.venv`.
+Without an activated environment it is `./.venv/bin/python` on macOS and Linux
+and `.venv\Scripts\python.exe` on Windows.
 
-### Что заполнить в `.env`
+### Required `.env` values
 
-| Параметр | Где взять | Зачем |
+| Setting | Source | Purpose |
 |---|---|---|
-| `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` | [my.telegram.org](https://my.telegram.org) → API development tools | чтение каналов и чатов от твоего аккаунта |
-| `TELEGRAM_BOT_TOKEN` | [@BotFather](https://t.me/BotFather) → `/newbot` | доставка сообщений тебе |
-| `TELEGRAM_OWNER_ID` | напиши своему боту `/start` — он ответит твоим id | чтобы бот слушал только тебя |
-| `MOODLE_URL`, `MOODLE_USERNAME`, `MOODLE_PASSWORD` | адрес твоего Moodle и обычные логин с паролем | дедлайны и задания из курсов |
+| `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` | [my.telegram.org](https://my.telegram.org) → API development tools | reading channels and chats as the account owner |
+| `TELEGRAM_BOT_TOKEN` | [@BotFather](https://t.me/BotFather) → `/newbot` | message delivery to the owner |
+| `TELEGRAM_OWNER_ID` | send `/start` to the bot; it replies with the id | restricts the bot to a single recipient |
+| `MOODLE_URL`, `MOODLE_USERNAME`, `MOODLE_PASSWORD` | the Moodle instance address and ordinary account credentials | deadlines and assignments from enrolled courses |
 
-Боты не видят каналы, на которые ты подписан, — поэтому нужны обе половины:
-аккаунт читает, бот пишет.
+Both halves are needed because bots cannot see the channels an account is
+subscribed to: the account reads, the bot writes.
 
-**Ключи Telegram нужны не всегда.** Публичные каналы читаются нодой
-`telegram.web` через `t.me/s/<канал>` вообще без авторизации — так и настроен
-`morning_digest` из коробки. `api_id` понадобится, только когда захочешь читать
-закрытые каналы и учебный чат: тогда поменяй в YAML `node: telegram.web` на
-`node: telegram.read`, параметры у них одинаковые.
+**Telegram API keys are optional.** Public channels are read by the
+`telegram.web` node through `t.me/s/<channel>` without any authentication, which
+is how `morning_digest` ships by default. An `api_id` becomes necessary only for
+private channels and group chats: replace `node: telegram.web` with
+`node: telegram.read` in the YAML, the parameters are identical.
 
-### Автозапуск
+### Running as a service
 
 macOS (launchd):
 
 ```bash
-./scripts/install_service.sh     # поднимется при входе в систему и после перезагрузки
-./scripts/uninstall_service.sh   # убрать
+./scripts/install_service.sh     # starts at login and after reboot
+./scripts/uninstall_service.sh   # removes the agent
 ```
 
-Windows («Планировщик заданий»):
+Windows (Task Scheduler):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\install_service.ps1
 powershell -ExecutionPolicy Bypass -File scripts\uninstall_service.ps1
 ```
 
-Задание называется `LocalWorkflowAutomator`: стартует при входе в систему и
-поднимается само, если процесс упал. Окна консоли не будет — работает
-`pythonw.exe`, весь вывод идёт в лог.
+The task is registered as `LocalWorkflowAutomator`. It starts at login and
+restarts itself if the process exits. No console window appears — the task runs
+`pythonw.exe` and all output goes to the log.
 
-Логи сервиса — в `data/logs/`.
+Service logs are written to `data/logs/`.
 
-## Если провайдер закрыл Telegram
+## Operating behind a blocked network
 
-Пропиши прокси в `.env` — он используется для всего, что ходит наружу:
-Bot API, чтения каналов, Moodle и запусков Claude CLI.
+Declare a proxy in `.env`. It applies to every outbound connection: the Bot API,
+channel reads, Moodle, and Claude CLI invocations.
 
 ```
 TELEGRAM_PROXY=http://user:pass@host:port
 ```
 
-Пустое значение означает «взять из окружения» (`HTTPS_PROXY`, `HTTP_PROXY`,
-`ALL_PROXY`). Полагаться на окружение не стоит: автозапуск поднимает службу
-из-под «Планировщика заданий», а тот переменные вашей консоли не наследует —
-и настройки у службы окажутся не те, с которыми всё проверялось руками.
+An empty value means "inherit from the environment" (`HTTPS_PROXY`,
+`HTTP_PROXY`, `ALL_PROXY`). Relying on the environment is discouraged: the
+service is launched by Task Scheduler, which does not inherit the variables set
+in an interactive console, so the service would run with different settings than
+those verified by hand.
 
-Поддерживаются схемы `http://`, `https://`, `socks5://` и `socks5h://`.
-Адрес с любой другой схемой (например `socks4://` от VPN-клиента)
-игнорируется: httpx и aiohttp такой прокси не понимают, и с ним не работает
-вообще ничего.
+Supported schemes are `http://`, `https://`, `socks5://` and `socks5h://`. An
+address using any other scheme (for example `socks4://` exposed by a VPN client)
+is ignored, because neither httpx nor aiohttp accepts such a proxy and nothing
+would work with it.
 
-Telethon прокси пока не получает — с ним чтение личных чатов и закрытых
-каналов там, где Telegram блокируется, работать не будет.
+Telethon does not receive the proxy yet. Where Telegram is blocked, reading
+private chats and closed channels will therefore not work.
 
-## Как это устроено
+## Architecture
 
 ```
-workflows/*.yaml   описания воркфлоу — это то, что ты правишь чаще всего
-core/              движок: загрузка YAML, шаблоны, исполнитель, планировщик
-nodes/             типы шагов, доступные в YAML
-integrations/      Claude CLI, Telegram (чтение и отправка)
-web/               панель и JSON API
-bot/               команды бота
-data/              база, сессия Telegram, твои скрипты, логи
+workflows/*.yaml   workflow definitions — the files edited most often
+core/              engine: YAML loading, templating, executor, scheduler
+nodes/             step types available in YAML
+integrations/      Claude CLI, Telegram (reading and sending)
+web/               panel and JSON API
+bot/               bot commands
+data/              database, Telegram session, user scripts, logs
 ```
 
-Воркфлоу — это список шагов. Каждый шаг вызывает ноду и кладёт результат в
-контекст, откуда его берёт следующий шаг через `{{ steps.<id>.text }}`.
+A workflow is a list of steps. Each step invokes a node and stores its result in
+the run context, from which the next step reads it via `{{ steps.<id>.text }}`.
 
 ```yaml
 name: morning_digest
 trigger:
   type: cron
   cron: "0 8 * * *"
-  catch_up: true          # проспал — пришлёт при включении
+  catch_up: true          # missed runs are delivered at start-up
 steps:
   - id: news
     node: telegram.read
@@ -136,80 +139,86 @@ steps:
     node: claude.prompt
     params:
       model: fast
-      prompt: "Сделай сводку:\n{{ steps.news.text }}"
+      prompt: "Summarise:\n{{ steps.news.text }}"
   - id: send
     node: telegram.send
     params: { text: "{{ steps.digest.text }}" }
 ```
 
-Дополнительно у шага есть `when:` (выполнять при условии) и
-`continue_on_error: true` (не валить весь воркфлоу из-за одного шага).
+A step also accepts `when:` (conditional execution) and
+`continue_on_error: true` (a failing step does not abort the workflow).
 
-В шаблонах доступны `steps.*`, `vars.*` (из блока `vars` воркфлоу),
-`workflow.name`, `workflow.title` и `now` — `now.date`, `now.time`,
+Templates expose `steps.*`, `vars.*` (from the workflow `vars` block),
+`workflow.name`, `workflow.title`, and `now` — `now.date`, `now.time`,
 `now.weekday`, `now.human`.
 
-### Типы шагов
+Message text is written in markdown, not HTML. Everything sent to Telegram
+passes through an escaping converter, so raw HTML in a workflow, prompt, or bot
+reply reaches the recipient as visible angle brackets.
 
-| Нода | Что делает |
+### Step types
+
+| Node | Description |
 |---|---|
-| `telegram.web` | читает **публичные** каналы через t.me — без ключей и входа в аккаунт |
-| `telegram.read` | читает каналы и чаты от твоего аккаунта, включая закрытые (`track_cursor` помнит прочитанное) |
-| `telegram.send` | отправляет текст тебе в бот, режет длинное на части |
-| `claude.prompt` | текстовая обработка без инструментов — сводки, извлечение данных |
-| `claude.agent` | Claude с инструментами: MCP-коннекторы Notion, Gmail, Календарь |
-| `items.save` | сохраняет записи (домашка, задачи) с дедупликацией по `external_id` |
-| `items.query` | достаёт открытые записи, в том числе с приближающимся сроком |
-| `items.complete` | закрывает запись |
-| `moodle.deadlines` | дедлайны из календаря Moodle |
-| `moodle.courses` | список курсов, на которые ты записан |
-| `moodle.page` | любая страница Moodle в виде текста |
-| `telegram.unread` | непрочитанное из личек и групп — кто написал и о чём |
-| `mail.fetch` | письма из всех ящиков по IMAP |
-| `script.run` | запускает твой скрипт из `data/scripts` |
-| `http.request` | HTTP-запрос к любому API |
+| `telegram.web` | reads **public** channels through t.me, without keys or a signed-in account |
+| `telegram.read` | reads channels and chats as the account owner, private ones included (`track_cursor` remembers the read position) |
+| `telegram.send` | sends text to the owner's bot, splitting long messages |
+| `claude.prompt` | text processing without tools — summaries, data extraction |
+| `claude.agent` | Claude with tools: Notion, Gmail and Calendar MCP connectors |
+| `items.save` | stores items (homework, tasks) deduplicated by `external_id` |
+| `items.query` | retrieves open items, optionally filtered by an approaching due date |
+| `items.complete` | closes an item |
+| `moodle.deadlines` | deadlines from the Moodle calendar |
+| `moodle.courses` | list of enrolled courses |
+| `moodle.page` | any Moodle page rendered as text |
+| `telegram.unread` | unread direct messages and group messages — sender and subject |
+| `mail.fetch` | messages from every configured mailbox over IMAP |
+| `script.run` | executes a user script from `data/scripts` |
+| `http.request` | HTTP request to an arbitrary API |
 
-Актуальный список: `python cli.py nodes`.
+For the current list, run `python cli.py nodes`.
 
-### Готовые воркфлоу
+### Bundled workflows
 
-| Файл | Что делает | Состояние |
+| File | Description | State |
 |---|---|---|
-| `morning_digest.yaml` | новости + дедлайны + задачи одним сообщением в 8:00 | включён, впиши свои каналы |
-| `deadlines_evening.yaml` | в 21:00 напоминает о том, что горит | включён |
-| `moodle_sync.yaml` | каждые 3 часа тянет дедлайны из Moodle | включён, заполни `.env` |
-| `homework_watch.yaml` | каждые 30 мин читает учебный чат и вытаскивает задания | выключен, укажи чат |
-| `mail_digest.yaml` | сводка почты из всех ящиков в 9:00 и 19:00 | включён, добавь ящики |
-| `messages_watch.yaml` | раз в час: кто написал в личку и группы | включён, нужен `api_id` |
-| `schedule_sync.yaml` | расписание из телеграм-чата в записи | включён, укажи чат |
-| `notion_daily.yaml` | вечерняя запись дня в Notion | выключен, укажи страницу |
-| `script_example.yaml` | шаблон для своей автоматизации | выключен |
+| `morning_digest.yaml` | news, deadlines and tasks in a single 08:00 message | enabled; add your channels |
+| `deadlines_evening.yaml` | 21:00 reminder about what is due | enabled |
+| `moodle_sync.yaml` | pulls Moodle deadlines every 3 hours | enabled; fill in `.env` |
+| `homework_watch.yaml` | reads the course chat every 30 minutes and extracts assignments | disabled; specify the chat |
+| `mail_digest.yaml` | mail summary across all mailboxes at 09:00 and 19:00 | enabled; add mailboxes |
+| `messages_watch.yaml` | hourly report of direct and group messages | enabled; requires `api_id` |
+| `schedule_sync.yaml` | imports a timetable from a Telegram chat into items | enabled; specify the chat |
+| `notion_daily.yaml` | evening day summary written to Notion | disabled; specify the page |
+| `script_example.yaml` | template for a custom automation | disabled |
 
-Имена каналов удобно смотреть так:
+Channel names can be looked up with:
 
 ```bash
-python scripts/list_chats.py универ
+python scripts/list_chats.py university
 ```
 
 ## Moodle
 
-Дедлайны забираются двумя путями, система выбирает сама:
+Deadlines are retrieved through one of two paths, selected automatically:
 
-1. **Веб-сервисы** (`/webservice/rest/server.php`). Работает, если администратор
-   оставил включённым мобильный сервис. Данные приходят структурированными:
-   название, курс, точный срок, ссылка. Claude при этом не нужен вообще.
-2. **Обычный вход на сайт**, если веб-сервисы закрыты. Система логинится формой,
-   открывает страницу предстоящих событий, чистит её от разметки и отдаёт текст
-   Claude — тот вытаскивает задания и сроки.
+1. **Web services** (`/webservice/rest/server.php`), available when the
+   administrator has left the mobile service enabled. The data arrives
+   structured — title, course, exact due date, link — and Claude is not involved.
+2. **Ordinary site login**, used when web services are disabled. The service
+   authenticates through the login form, opens the upcoming events page, strips
+   the markup, and passes the text to Claude, which extracts assignments and
+   dates.
 
-Какой путь у тебя — покажет `python scripts/moodle_check.py`. В журнале
-запуска это видно по полю `mode`: `api` или `html`.
+`python scripts/moodle_check.py` reports which path applies. In the run journal
+the same information appears in the `mode` field: `api` or `html`.
 
-Задания попадают в записи с `kind: homework` и ключом `moodle-<id>`, поэтому
-повторная синхронизация не плодит дубли, а обновляет существующие. Дальше они
-сами появляются в утреннем дайджесте и вечернем напоминании.
+Assignments are stored as items with `kind: homework` and the key
+`moodle-<id>`, so repeated synchronisation updates existing records instead of
+creating duplicates. They then appear in the morning digest and the evening
+reminder automatically.
 
-Если расписание пар лежит на отдельной странице Moodle, добавь шаг:
+If the class timetable lives on a separate Moodle page, add a step:
 
 ```yaml
 - id: schedule
@@ -217,97 +226,100 @@ python scripts/list_chats.py универ
   params: { path: "/calendar/view.php?view=month" }
 ```
 
-Пока `.env` не заполнен, `moodle_sync` завершается успешно и ничего не делает —
-в журнале будет строка «Moodle не настроен».
+Until `.env` is filled in, `moodle_sync` completes successfully and does
+nothing; the journal records "Moodle is not configured".
 
-## Почта
+## Mail
 
-Ящики читаются по IMAP — можно сколько угодно и на разных сервисах. Описываются
-в `.env` нумерованными группами:
+Mailboxes are read over IMAP. Any number of them may be configured, across
+different providers, using numbered groups in `.env`:
 
 ```
-MAIL_1_NAME=Личная
+MAIL_1_NAME=Personal
 MAIL_1_EMAIL=ivan@gmail.com
-MAIL_1_PASSWORD=пароль-приложения
+MAIL_1_PASSWORD=app-password
 
-MAIL_2_NAME=Учебная
+MAIL_2_NAME=University
 MAIL_2_EMAIL=ivan@yandex.ru
-MAIL_2_PASSWORD=пароль-приложения
+MAIL_2_PASSWORD=app-password
 ```
 
-IMAP-сервер определяется по адресу автоматически: gmail, яндекс, mail.ru, bk.ru,
-outlook, icloud, rambler. Для своего домена добавьте `MAIL_1_HOST=imap.домен`.
+The IMAP host is derived from the address for gmail, yandex, mail.ru, bk.ru,
+outlook, icloud and rambler. For a custom domain, add `MAIL_1_HOST=imap.domain`.
 
-**Нужен пароль приложения, а не обычный.** Обычные пароли сервисы для IMAP
-больше не принимают:
+**An application password is required; a regular account password will not
+work.** Providers no longer accept ordinary passwords over IMAP:
 
-- Gmail — включить двухфакторку, затем myaccount.google.com/apppasswords
-- Яндекс — id.yandex.ru → Безопасность → Пароли приложений → Почта
-- Mail.ru — id.mail.ru → Безопасность → Пароли для внешних приложений
+- Gmail — enable two-factor authentication, then myaccount.google.com/apppasswords
+- Yandex — id.yandex.ru → Security → App passwords → Mail
+- Mail.ru — id.mail.ru → Security → Passwords for external applications
 
-Ящик открывается **только на чтение**: письма не помечаются прочитанными и
-не меняются. Каждое письмо попадает в сводку один раз — позиция запоминается.
+Mailboxes are opened **read-only**: messages are neither marked as read nor
+modified. Each message enters a summary once — the position is remembered.
 
-## Команды бота
+## Bot commands
 
-Внизу экрана постоянное меню из шести кнопок: дайджест, кто писал, почта,
-сегодня, домашка, задачи. Команды на случай, когда нужнее текстом:
+A persistent six-button menu covers the common actions: digest, messages, mail,
+today, homework, tasks. The equivalent commands:
 
 ```
-/today         занятия и дедлайны на сегодня
-/hw            домашка (с кнопками «закрыть»)
-/tasks         задачи
-/mail          собрать сводку почты прямо сейчас
-/msg           кто написал в личку
-/list          воркфлоу с кнопками запуска
-/run <имя>     выполнить конкретный воркфлоу
-/add <текст>   добавить задачу
-/done <id>     закрыть запись
-/status        что настроено, а что нет
+/today         classes and deadlines for today
+/hw            homework, with "close" buttons
+/tasks         tasks
+/mail          collect a mail summary now
+/msg           who wrote in direct messages
+/list          workflows with run buttons
+/run <name>    execute a specific workflow
+/add <text>    add a task
+/done <id>     close an item
+/status        what is configured and what is not
 ```
 
-Любое сообщение, не начинающееся со слэша, уходит вопросом к Claude.
+Any message that does not begin with a slash is forwarded to Claude as a
+question.
 
-## Отладка из терминала
+## Command-line debugging
 
 ```bash
-python cli.py list            # какие воркфлоу видит система
-python cli.py nodes           # доступные типы шагов
-python cli.py run morning_digest   # прогнать один раз и увидеть результат
-python -m pytest              # тесты
+python cli.py list                 # workflows visible to the service
+python cli.py nodes                # available step types
+python cli.py run morning_digest   # execute once and print the result
+python -m pytest                   # test suite
 ```
 
-Правки в YAML подхватываются кнопкой «Перечитать YAML» в панели —
-перезапускать сервис не нужно.
+YAML edits are picked up by the panel's reload button ("Перечитать YAML");
+restarting the service is unnecessary.
 
-## Расход подписки
+## Subscription usage
 
-Каждый вызов `claude.prompt` без инструментов стоит около 4k токенов контекста
-вместо 33k: движок передаёт CLI урезанный системный промпт и отключает
-инструменты с MCP-серверами. Шаги с `claude.agent` дороже — там инструменты
-нужны. Статистика по дням — на странице «Расход».
+A `claude.prompt` call without tools costs roughly 4k context tokens instead of
+33k: the engine passes the CLI a trimmed system prompt and disables tools and
+MCP servers. Steps using `claude.agent` cost more, since tools are required
+there. Daily statistics are shown on the usage page ("Расход").
 
-Для дешёвых шагов ставь `model: fast` (Haiku), для сводок и разбора — `default`
-(Sonnet), либо укажи модель явно: `model: claude-opus-5`.
+Use `model: fast` (Haiku) for inexpensive steps and `default` (Sonnet) for
+summaries and parsing, or name a model explicitly: `model: claude-opus-5`.
 
-## MCP-коннекторы
+## MCP connectors
 
-`claude.agent` пользуется теми коннекторами, что подключены к твоему Claude Code.
-Проверить: `claude mcp list`.
+`claude.agent` uses the connectors attached to the local Claude Code
+installation. Verify them with `claude mcp list`.
 
-Коннектор, у которого в списке доступен только шаг авторизации, ещё не
-подключён — авторизуй его в настройках claude.ai (Settings → Connectors).
-Готовый пример агентского шага — `notion_daily.yaml`.
+A connector that exposes only an authorisation step is not connected yet;
+authorise it in the claude.ai settings (Settings → Connectors). A working
+agentic step is provided in `notion_daily.yaml`.
 
-Имя инструмента для `tools` строится как `mcp__<сервер>__<инструмент>`;
-можно разрешить сервер целиком: `mcp__claude_ai_Notion`.
+Tool names for `tools` follow the pattern `mcp__<server>__<tool>`; an entire
+server may be allowed at once, for example `mcp__claude_ai_Notion`.
 
-## Безопасность
+## Security
 
-- Секреты только в `.env`, он в `.gitignore` и в код не попадает.
-- Панель слушает `127.0.0.1` — из сети она не видна.
-- Бот отвечает только владельцу из `TELEGRAM_OWNER_ID`, остальные игнорируются.
-- `script.run` запускает файлы исключительно из `data/scripts`.
-- Пароль от Moodle лежит только в `.env`; токен веб-сервиса кешируется в локальной
-  базе и обновляется сам, когда протухает.
-- Сессия Telegram лежит локально в `data/` и никуда не отправляется.
+- Secrets live only in `.env`, which is listed in `.gitignore` and never reaches
+  the code.
+- The panel listens on `127.0.0.1` and is not reachable from the network.
+- The bot responds only to the owner declared in `TELEGRAM_OWNER_ID` and ignores
+  everyone else.
+- `script.run` executes files exclusively from `data/scripts`.
+- The Moodle password is kept in `.env` only; the web service token is cached in
+  the local database and refreshed automatically on expiry.
+- The Telegram session is stored locally in `data/` and is never transmitted.
