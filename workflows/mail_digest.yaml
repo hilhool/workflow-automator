@@ -50,12 +50,12 @@ steps:
     when: "{{ steps.letters.count > 0 }}"
     node: telegram.send
     params:
-      header: "📬 <b>Почта: {{ steps.letters.count }} писем</b>"
+      header: "📬 **Почта: {{ steps.letters.count }}**"
       text: "{{ steps.summary.text }}"
 
   - id: report_failures
     when: "{{ steps.letters.failures }}"
     node: telegram.send
     params:
-      header: "⚠️ <b>Ящики, к которым не удалось подключиться</b>"
+      header: "⚠️ **Ящики, к которым не удалось подключиться**"
       text: "{{ steps.letters.failures | join('\n') }}"

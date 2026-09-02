@@ -54,5 +54,5 @@ steps:
   - id: send
     node: telegram.send
     params:
-      header: "🗒 <b>Записал день в Notion</b>"
+      header: "🗒 **Записал день в Notion**"
       text: "{{ steps.write.text }}"

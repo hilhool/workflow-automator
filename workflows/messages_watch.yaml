@@ -41,5 +41,5 @@ steps:
     when: "{{ steps.unread.count > 0 }}"
     node: telegram.send
     params:
-      header: "💬 <b>Непрочитанное ({{ steps.unread.count }})</b>"
+      header: "💬 **Непрочитанное ({{ steps.unread.count }})**"
       text: "{{ steps.summary.text }}"

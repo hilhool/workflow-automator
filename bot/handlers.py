@@ -16,15 +16,15 @@ from integrations.markdown_html import markdown_to_telegram_html, split_message
 
 logger = logging.getLogger(__name__)
 
-HELP_TEXT = """<b>Кнопки внизу закрывают почти всё.</b> Ещё есть команды:
+HELP_TEXT = """**Кнопки внизу закрывают почти всё.** Ещё есть команды:
 
 /today — занятия и дедлайны на сегодня
 /hw — домашка, /tasks — задачи
 /mail — сводка почты, /msg — кто писал
 /list — все воркфлоу с кнопками запуска
-/run &lt;имя&gt; — запустить воркфлоу
-/add &lt;текст&gt; — добавить задачу
-/done &lt;id&gt; — закрыть запись
+/run <имя> — запустить воркфлоу
+/add <текст> — добавить задачу
+/done <id> — закрыть запись
 /status — что настроено, а что нет
 
 Любое другое сообщение — вопрос к Claude."""
@@ -74,7 +74,10 @@ def build_router(application) -> Router:
             return
         if message.from_user.id != owner_id:
             return
-        await message.answer(HELP_TEXT, reply_markup=keyboards.main_menu())
+        await message.answer(
+            markdown_to_telegram_html(HELP_TEXT),
+            reply_markup=keyboards.main_menu(),
+        )
 
     async def reject_strangers(message: Message) -> None:
         logger.warning("Сообщение от постороннего id=%s", message.from_user.id)
@@ -93,7 +96,10 @@ def build_router(application) -> Router:
 
     @router.message(Command("help", "menu"))
     async def help_command(message: Message) -> None:
-        await message.answer(HELP_TEXT, reply_markup=keyboards.main_menu())
+        await message.answer(
+            markdown_to_telegram_html(HELP_TEXT),
+            reply_markup=keyboards.main_menu(),
+        )
 
     @router.message(Command("today"))
     async def today(message: Message) -> None:

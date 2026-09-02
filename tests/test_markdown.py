@@ -36,3 +36,25 @@ def test_splits_long_text_by_paragraphs():
 
 def test_short_text_is_not_split():
     assert split_message("короткий текст") == ["короткий текст"]
+
+
+def test_blank_lines_survive_headings():
+    result = markdown_to_telegram_html("вступление\n\n## Новости\n\n- пункт")
+    assert result == "вступление\n\n<b>Новости</b>\n\n• пункт"
+
+
+def test_heading_levels_differ():
+    result = markdown_to_telegram_html("## Новости\n\n### Футбол")
+    assert "<b>Новости</b>" in result
+    assert "<i>Футбол</i>" in result
+
+
+def test_nested_bullets_keep_indent():
+    result = markdown_to_telegram_html("- верхний\n  - вложенный")
+    assert result == "• верхний\n   ◦ вложенный"
+
+
+def test_long_line_is_split_by_words():
+    chunks = split_message("слово " * 400, limit=200)
+    assert all(len(chunk) <= 200 for chunk in chunks)
+    assert all(chunk.strip() and not chunk.endswith("слов") for chunk in chunks)

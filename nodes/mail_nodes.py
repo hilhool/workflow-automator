@@ -60,7 +60,7 @@ class MailFetchNode(Node):
                 messages = await context.services.mail.fetch(account, request)
             except Exception as error:  # noqa: BLE001 — причина уходит в отчёт шага
                 context.logger.warning("Ящик %s недоступен: %s", account.name, error)
-                failures.append(f"{account.name}: {error}")
+                failures.append(self._describe(account, error))
                 continue
             last_uid = cursors.get(account.name, "")
             collected += [
@@ -69,6 +69,17 @@ class MailFetchNode(Node):
             ]
         collected.sort(key=lambda message: message.date_iso)
         return collected, failures
+
+    @staticmethod
+    def _describe(account: MailAccount, error: Exception) -> str:
+        """Строка для человека: без адреса, ответа сервера и служебных id.
+
+        Полная причина уже ушла в лог — в Telegram отдаём только суть и подсказку.
+        """
+        message = getattr(error, "message", None) or str(error)
+        context = getattr(error, "context", None)
+        hint = context.get("hint") if isinstance(context, dict) else None
+        return f"{account.name}: {message}" + (f" — {hint}" if hint else "")
 
     async def _load_cursors(self, context: NodeContext) -> dict[str, str]:
         stored = await context.services.kv.get(context.state_namespace, _CURSOR_KEY, {})

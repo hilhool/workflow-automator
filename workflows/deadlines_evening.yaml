@@ -19,5 +19,5 @@ steps:
     when: "{{ steps.soon.count > 0 }}"
     node: telegram.send
     params:
-      header: "⏰ <b>Горит в ближайшие два дня</b>"
+      header: "⏰ **Горит в ближайшие два дня**"
       text: "{{ steps.soon.text }}"

@@ -49,13 +49,13 @@ class BotActions:
         blocks = []
         if planned:
             planned.sort(key=lambda row: row["due_at"] or "")
-            blocks.append("<b>Занятия</b>\n" + "\n".join(
+            blocks.append("**Занятия**\n" + "\n".join(
                 f"{format_local(row['due_at'], self._timezone, '%H:%M')} — {row['title']}"
                 + (f" ({row['body']})" if row["body"] else "")
                 for row in planned
             ))
         if due_today:
-            blocks.append("<b>Сдать сегодня</b>\n" + "\n".join(
+            blocks.append("**Сдать сегодня**\n" + "\n".join(
                 f"• {row['title']}" for row in due_today
             ))
         if not blocks:
@@ -88,7 +88,7 @@ class BotActions:
             for name, item in workflows.items()
         ]
         buttons = {name: item.title for name, item in workflows.items() if item.enabled}
-        return "<b>Воркфлоу</b>\n" + "\n".join(lines), workflow_buttons(buttons)
+        return "**Воркфлоу**\n" + "\n".join(lines), workflow_buttons(buttons)
 
     async def status(self) -> Reply:
         services = self._application.services
@@ -102,7 +102,7 @@ class BotActions:
         ]
         if self._application.library.errors:
             lines.append(f"Файлов с ошибками: {len(self._application.library.errors)}")
-        lines.append("\n<b>Последние запуски</b>")
+        lines.append("\n**Последние запуски**")
         lines += [
             f"#{run['id']} {run['workflow']} — {run['status']}"
             f" ({format_local(run['started_at'], self._timezone)})"

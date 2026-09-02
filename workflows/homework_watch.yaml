@@ -59,6 +59,6 @@ steps:
     when: "{{ steps.save.count | default(0) > 0 }}"
     node: telegram.send
     params:
-      header: "📚 <b>Новое из учебного чата</b>"
+      header: "📚 **Новое из учебного чата**"
       # save отдаёт уже человекочитаемый список, а extract — сырой JSON.
       text: "{{ steps.save.text }}"
